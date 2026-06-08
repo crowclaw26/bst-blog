@@ -1,0 +1,256 @@
+* Notes on the binary search blog post
+** From gemini based on results
+Key Architectural Takeaways
+The Iterative Two-Way Breakthrough: In a perfectly balanced tree structure, the iterative Two-Way search is exceptionally fast at approximately 30 ns/op. By eliminating both stack frame overhead and memory write stalls (unlike Sentinel search), it allows modern out-of-order execution pipelines to fully exploit the single comparison per node.
+
+Cache Locality vs. Instruction Count: On random, unbalanced trees, Standard search retains the lead at around 57 ns/op. Standard search's early termination capability avoids traversing the deeper branches of an unbalanced tree. This saves expensive L1/L2 cache misses that severely impact the full-depth traversal requirement of Two-Way search.
+
+LLVM Tail-Call Optimization (TCO): The manual refactor of Standard search from recursive to iterative yielded virtually zero performance gain. LLVM's -OReleaseFast compiler pass perfectly optimized the pure tail recursion into an iterative loop at the assembly level.
+
+The Cost of State: TCO struggled with the original Two-Way search because it passed an optional candidate parameter down the stack. Refactoring this into a local loop variable allowed the compiler to register-promote the state, yielding a massive 50% speedup on balanced trees.
+
+** Optimize away
+Are you planning to inspect the exact assembly diffs (via objdump or Godbolt) to see exactly how LLVM optimized away the optional candidate parameter during the Two-Way search refactor?
+
+
+** Why floating point?
+Based on the text of the paper, the author **does not explicitly state** why floating-point data types (REAL, DOUBLE, DIGITS) were used for the keys. However, looking closely at the author's claims earlier in the paper, it becomes very clear why this choice was made.
+
+Here is the breakdown of why floating-point numbers were used for the experimental benchmark:
+
+### The Core Reason: Making Comparisons Expensive
+
+In the Introduction, the author makes this crucial statement:
+
+> *"In the likely case that element-comparisons are more expensive than pointer operations, our improvement is more significant than the improvement caused by using a sentinel."*
+
+The entire premise of the improved algorithm is to reduce the number of key comparisons from two down to one per visited node, at the cost of a few extra pointer assignments.
+
+To prove that this trade-off is worthwhile in an experiment, the author needed to ensure that comparing two elements was genuinely "expensive" for the CPU.
+
+### The Context of 1991 Hardware
+
+In 1991, the hardware used for the tests (Sun 3/180, VAX/780, IBM PS/2 55X) handled different data types with vastly different performance profiles:
+
+* **Integers and Pointers:** Comparing simple integers or moving pointers around memory was very fast, typically taking just a few CPU cycles.
+* **Floating-Point Numbers:** Comparing `REAL` or `DOUBLE` types was significantly more computationally heavy. Even with a math co-processor (which the author explicitly notes was present on the IBM PS/2), floating-point operations took considerably more cycles than integer operations.
+
+### The Experimental Strategy
+
+If the author had used basic integers for the keys, the time spent comparing elements might have been nearly identical to the time spent on the extra pointer assignments (`candidate := T`). This would have resulted in a minimal or non-existent measurable speedup, masking the algorithmic efficiency of the two-way search.
+
+By deliberately choosing floating-point numbers (`REAL` in Modula-2, `DOUBLE` in Turbo-Pascal, and `DIGITS(18)` in Ada), the author artificially inflated the cost of the comparison operation relative to the pointer operations. This created a scenario where removing one comparison per node yielded the dramatic 26–44% speedup highlighted in the results.
+
+
+** Insights
+
+*** Overall we notice that 
+
+
+*** Branch prediction and memory writes
+theory is that sentinel is much slower because it needs to write to memory at the start of each search
+
+when traversing the tree the node will be not null until you reach a leaf so the branch prediction will be accurate 
+meaning the execution after the can be executed speculatively 
+
+"This replaces a highly predictable branch with a memory store (write)."
+
+In 1991, CPU pipelines were short (or non-existent), and memory writes were relatively cheap compared to the instruction overhead of checking for NIL.
+
+Today, the trade-off has inverted: predicting a branch is virtually free, but writing to memory is highly restrictive.
+
+
+
+** Paper 
+The central topic is Arne Andersson's paper "A Note on Searching in a Binary Tree".
+
+A method to search a tree with 2-way comparisons is presented and is only 1 more comparison than 3-way.
+
+He notes that modern high-level languages don't support 3-way.
+
+TODO don't fully understand some nuance here. 
+
+Typical implementation, 3-way comparison... is it <, go left, is it > go right, otherwise you found it.
+Plus a check at each "go in direction" operation. 
+
+In generated code likely does 2 2-way comparisons (== and <) at each step instead of doing a single 3-way comparison.
+
+We talk about the sentinel method first. Putting the sentinel at the leaves. 
+
+Comparison... 
+Standard search (Up to 3 comparisons per loop)
+At each step check the tree is not null[1] and the tree does not contain the target[2] 
+Next check for < then and go left if true (compare <) [3]
+Else go right  (no comparison)
+
+Sentinel search (2 comparisons per loop and 1 at the end)
+while key not the target [1] 
+  if < [2] go left
+  else go right
+
+final check, is found element the target or not
+
+next we get to Arne's contribution:
+
+Two Way Search (2 comparisons per loop and 2 at the end)
+
+candidate = null
+While tree is not null [1] 
+  if < [2] go left
+  else go right (save candidate)
+
+At the bottom of the tree we do two comparisons:
+  if candidate not null and candidate == target 
+     we found it
+
+Note: deletion is cheaper because instead of finding the element first and then a leaf, we find both 
+** Hardware notes 
+Based on the paper's text and the historical context of the listed hardware and software, the DOUBLE data type is 64 bits (8 bytes).
+
+Here is the breakdown of how that is determined from the text:
+
+The Software and Hardware Context: In the "Experimental Results" section, the author states that the DOUBLE data type was used specifically when running the experiment on an "IBM PS/2 55X (with math co-processor) with Turbo Pascal 5.5."
+
+Turbo Pascal 5.5 Specifications (circa 1989-1991): Borland's Turbo Pascal 5.5 included standard support for IEEE 754 floating-point formats, provided a math co-processor (like the Intel 80387) was present.
+
+The Data Types: While the standard software-emulated Real type in older Pascal versions was 48 bits (6 bytes), the explicit DOUBLE type introduced for x87 math co-processors conforms to the IEEE 754 double-precision standard, which is exactly 64 bits.
+
+The Sun Workstation (Sun 3/180): Good catch on the Motorola architecture, though a slight correction—the Sun 3/180 actually used the Motorola 68020 processor paired with a 68881 math coprocessor. 
+
+Sun didn't switch to the 68030 until the later Sun-3x models (like the 3/80). On this hardware, the author used the REAL data type in Sun Modula-2. 
+
+Following standard Wirth language conventions, REAL maps to an IEEE 754 single-precision float, making it exactly 32 bits (half the size of the IBM's 64-bit DOUBLE).  
+
+The "Mainframe" (VAX/780): Technically classified as a "superminicomputer," the Digital VAX-11/780 ran Digital Ada using a DIGITS(18) declaration. 
+
+In Ada, this is a strict compiler constraint demanding a type capable of at least 18 decimal digits of precision. A 64-bit float (like VAX's native D_floating or G_floating formats) maxes out at about 15 to 17 decimal digits. To satisfy digits 18, the compiler was forced to use VAX's H_floating quad-precision format, which is an enormous 128 bits.
+
+| Computer     | Compiler                            | Notes                                               |
+|--------------+-------------------------------------+-----------------------------------------------------|
+| Sun 3/180    | Sun Modula-2 2.2 (max optimization) | Motorola 68020-based workstation (≈ 16–20 MHz)      |
+| VAX/780      | Digital Ada compiler                | DEC VAX-11/780, VAX architecture                    |
+| IBM PS/2 55X | Turbo Pascal 5.5                    | Intel 80386-based PC (with 80387 math co-processor) |
+
+| Compiler / Language | Data Type  | Precision (bits) | Notes                                  |
+|---------------------+------------+------------------+----------------------------------------|
+| Sun Modula-2        | REAL       | 32 bits (single) | Standard Modula-2 REAL on Sun          |
+| Turbo Pascal 5.5    | DOUBLE     | 64 bits (double) | IEEE 754 double                        |
+| Digital Ada         | DIGITS(18) | 128 bits (long)  | Ada DIGITS(18) 128-bit. VAX H_floating |
+** Results
+Example from Crowsnest:
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz
+4 cpus
+T means power optimized
+Kaby Lake architecture
+
+
+--- Random Tree, Successful Search ---
+  Standard  Search: Mean =    91.44 ns/op, StdDev =   3.90 ns/op (4.3%)
+  Sentinel  Search: Mean =    84.05 ns/op, StdDev =   4.85 ns/op (5.8%)
+  Two-Way   Search: Mean =    90.74 ns/op, StdDev =   5.95 ns/op (6.6%)
+  Three-Way Search: Mean =    88.50 ns/op, StdDev =   1.12 ns/op (1.3%)
+--- Random Tree, Unsuccessful Search ---
+  Standard  Search: Mean =   100.53 ns/op, StdDev =   1.15 ns/op (1.1%)
+  Sentinel  Search: Mean =    94.46 ns/op, StdDev =   1.58 ns/op (1.7%)
+  Two-Way   Search: Mean =    87.71 ns/op, StdDev =   1.19 ns/op (1.4%)
+  Three-Way Search: Mean =    99.44 ns/op, StdDev =   1.55 ns/op (1.6%)
+--- Balanced Tree, Successful Search ---
+  Standard  Search: Mean =    81.87 ns/op, StdDev =   5.15 ns/op (6.3%)
+  Sentinel  Search: Mean =    46.92 ns/op, StdDev =   3.13 ns/op (6.7%)
+  Two-Way   Search: Mean =    52.83 ns/op, StdDev =   3.93 ns/op (7.4%)
+  Three-Way Search: Mean =    75.93 ns/op, StdDev =   3.98 ns/op (5.2%)
+--- Balanced Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    87.10 ns/op, StdDev =   2.01 ns/op (2.3%)
+  Sentinel  Search: Mean =    48.09 ns/op, StdDev =   1.86 ns/op (3.9%)
+  Two-Way   Search: Mean =    52.33 ns/op, StdDev =   2.29 ns/op (4.4%)
+  Three-Way Search: Mean =    84.52 ns/op, StdDev =   3.07 ns/op (3.6%)
+
+From M1:
+
+--- Random Tree, Successful Search ---
+  Standard  Search: Mean =    54.90 ns/op, StdDev =   0.40 ns/op (0.7%)
+  Sentinel  Search: Mean =    70.65 ns/op, StdDev =   0.26 ns/op (0.4%)
+  Two-Way   Search: Mean =    72.43 ns/op, StdDev =   0.30 ns/op (0.4%)
+  Three-Way Search: Mean =    56.24 ns/op, StdDev =   0.36 ns/op (0.6%)
+--- Random Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    60.64 ns/op, StdDev =   0.57 ns/op (0.9%)
+  Sentinel  Search: Mean =    80.37 ns/op, StdDev =   0.57 ns/op (0.7%)
+  Two-Way   Search: Mean =    73.17 ns/op, StdDev =   0.39 ns/op (0.5%)
+  Three-Way Search: Mean =    63.66 ns/op, StdDev =   0.87 ns/op (1.4%)
+--- Balanced Tree, Successful Search ---
+  Standard  Search: Mean =    59.71 ns/op, StdDev =   0.61 ns/op (1.0%)
+  Sentinel  Search: Mean =    37.46 ns/op, StdDev =   0.23 ns/op (0.6%)
+  Two-Way   Search: Mean =    30.25 ns/op, StdDev =   0.28 ns/op (0.9%)
+  Three-Way Search: Mean =    58.09 ns/op, StdDev =   0.34 ns/op (0.6%)
+--- Balanced Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    62.84 ns/op, StdDev =   0.24 ns/op (0.4%)
+  Sentinel  Search: Mean =    35.21 ns/op, StdDev =   0.26 ns/op (0.7%)
+  Two-Way   Search: Mean =    31.35 ns/op, StdDev =   0.37 ns/op (1.2%)
+  Three-Way Search: Mean =    63.77 ns/op, StdDev =   0.40 ns/op (0.6%)
+
+
+From
+Name                                            NumberOfCores NumberOfLogicalProcessors MaxClockSpeed
+----                                            ------------- ------------------------- -------------
+AMD Ryzen 7 7700X 8-Core Processor                          8                        16          4501
+
+--- Random Tree, Successful Search ---
+  Standard  Search: Mean =    59.28 ns/op, StdDev =   1.45 ns/op (2.5%)
+  Sentinel  Search: Mean =    57.56 ns/op, StdDev =   1.71 ns/op (3.0%)
+  Two-Way   Search: Mean =    60.46 ns/op, StdDev =   2.20 ns/op (3.6%)
+  Three-Way Search: Mean =    51.80 ns/op, StdDev =   2.43 ns/op (4.7%)
+--- Random Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    63.18 ns/op, StdDev =   1.58 ns/op (2.5%)
+  Sentinel  Search: Mean =    64.97 ns/op, StdDev =   1.24 ns/op (1.9%)
+  Two-Way   Search: Mean =    61.27 ns/op, StdDev =   2.50 ns/op (4.1%)
+  Three-Way Search: Mean =    58.53 ns/op, StdDev =   1.95 ns/op (3.3%)
+--- Balanced Tree, Successful Search ---
+  Standard  Search: Mean =    56.54 ns/op, StdDev =   1.89 ns/op (3.3%)
+  Sentinel  Search: Mean =    31.31 ns/op, StdDev =   1.17 ns/op (3.7%)
+  Two-Way   Search: Mean =    28.93 ns/op, StdDev =   1.60 ns/op (5.5%)
+  Three-Way Search: Mean =    49.30 ns/op, StdDev =   1.25 ns/op (2.5%)
+--- Balanced Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    58.16 ns/op, StdDev =   0.73 ns/op (1.3%)
+  Sentinel  Search: Mean =    30.44 ns/op, StdDev =   0.55 ns/op (1.8%)
+  Two-Way   Search: Mean =    29.79 ns/op, StdDev =   2.86 ns/op (9.6%)
+  Three-Way Search: Mean =    54.21 ns/op, StdDev =   2.00 ns/op (3.7%)
+
+Apple M4 Pro  14 (10 Performance and 4 Efficiency)
+
+--- Random Tree, Successful Search ---
+  Standard  Search: Mean =    43.29 ns/op, StdDev =   1.61 ns/op (3.7%)
+  Sentinel  Search: Mean =    51.01 ns/op, StdDev =   0.52 ns/op (1.0%)
+  Two-Way   Search: Mean =    54.47 ns/op, StdDev =   0.53 ns/op (1.0%)
+  Three-Way Search: Mean =    42.64 ns/op, StdDev =   0.35 ns/op (0.8%)
+--- Random Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    48.33 ns/op, StdDev =   1.32 ns/op (2.7%)
+  Sentinel  Search: Mean =    57.73 ns/op, StdDev =   0.36 ns/op (0.6%)
+  Two-Way   Search: Mean =    54.46 ns/op, StdDev =   0.16 ns/op (0.3%)
+  Three-Way Search: Mean =    47.46 ns/op, StdDev =   0.37 ns/op (0.8%)
+--- Balanced Tree, Successful Search ---
+  Standard  Search: Mean =    45.09 ns/op, StdDev =   0.47 ns/op (1.0%)
+  Sentinel  Search: Mean =    25.35 ns/op, StdDev =   0.27 ns/op (1.1%)
+  Two-Way   Search: Mean =    21.82 ns/op, StdDev =   0.28 ns/op (1.3%)
+  Three-Way Search: Mean =    43.66 ns/op, StdDev =   0.09 ns/op (0.2%)
+--- Balanced Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    48.01 ns/op, StdDev =   0.47 ns/op (1.0%)
+  Sentinel  Search: Mean =    22.62 ns/op, StdDev =   0.25 ns/op (1.1%)
+  Two-Way   Search: Mean =    22.67 ns/op, StdDev =   0.31 ns/op (1.4%)
+  Three-Way Search: Mean =    48.23 ns/op, StdDev =   0.45 ns/op (0.9%)
+
+** CPU info in python
+requires py-cpuinfo package 
+
+Crows cpu...
+#+BEGIN_SRC python
+{'python_version': '3.12.3.final.0 (64 bit)', 'cpuinfo_version': [9, 0, 0], 'cpuinfo_version_string': '9.0.0', 'arch': 'X86_64', 'bits': 64, 'count': 4, 'arch_string_raw': 'x86_64', 'vendor_id_raw': 'GenuineIntel', 'brand_raw': 'Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz', 'hz_advertised_friendly': '2.7000 GHz', 'hz_actual_friendly': '3.2941 GHz', 'hz_advertised': [2700000000, 0], 'hz_actual': [3294089000, 0], 'stepping': 9, 'model': 158, 'family': 6, 'flags': ['3dnowprefetch', 'abm', 'acpi', 'adx', 'aes', 'aperfmperf', 'apic', 'arat', 'arch_capabilities', 'arch_perfmon', 'art', 'avx', 'avx2', 'bmi1', 'bmi2', 'bts', 'clflush', 'clflushopt', 'cmov', 'constant_tsc', 'cpuid', 'cpuid_fault', 'cx16', 'cx8', 'de', 'ds_cpl', 'dtes64', 'dtherm', 'dts', 'epb', 'erms', 'est', 'f16c', 'flush_l1d', 'fma', 'fpu', 'fsgsbase', 'fxsr', 'ht', 'hwp', 'hwp_act_window', 'hwp_epp', 'hwp_notify', 'ibpb', 'ibpb_exit_to_user', 'ibrs', 'ida', 'intel_pt', 'invpcid', 'lahf_lm', 'lm', 'mca', 'mce', 'md_clear', 'mmx', 'monitor', 'movbe', 'mpx', 'msr', 'mtrr', 'nonstop_tsc', 'nopl', 'nx', 'osxsave', 'pae', 'pat', 'pbe', 'pcid', 'pclmulqdq', 'pdcm', 'pdpe1gb', 'pebs', 'pge', 'pln', 'pni', 'popcnt', 'pse', 'pse36', 'pti', 'pts', 'rdrand', 'rdrnd', 'rdseed', 'rdtscp', 'rep_good', 'sdbg', 'sep', 'sgx', 'smap', 'smep', 'smx', 'ss', 'ssbd', 'sse', 'sse2', 'sse4_1', 'sse4_2', 'ssse3', 'stibp', 'syscall', 'tm', 'tm2', 'tsc', 'tsc_adjust', 'tsc_deadline_timer', 'tscdeadline', 'vme', 'vmx', 'x2apic', 'xgetbv1', 'xsave', 'xsavec', 'xsaveopt', 'xsaves', 'xtopology', 'xtpr'], 'l3_cache_size': 6291456, 'l2_cache_size': 1048576, 'l1_data_cache_size': 131072, 'l1_instruction_cache_size': 131072, 'l2_cache_line_size': 256, 'l2_cache_associativity': 6}
+#+END_SRC
+
+M1
+
+#+BEGIN_SRC python
+{'python_version': '3.12.10.final.0 (64 bit)', 'cpuinfo_version': [9, 0, 0], 'cpuinfo_version_string': '9.0.0', 'arch': 'ARM_8', 'bits': 64, 'count': 10, 'arch_string_raw': 'arm64', 'brand_raw': 'Apple M1 Pro'}
+#+END_SRC
+
+
+
