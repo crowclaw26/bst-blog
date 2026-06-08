@@ -1,6 +1,6 @@
 # Binary Tree Search benchmarks
 
-In this repo we implement variants of binary tree search.
+In this repo we implement variants of binary tree search, in particular a two-way search variant from Arne Andersson's 1991 paper "A Note on Searching in a Binary Search Tree".
 
 ## References
 
