@@ -1,0 +1,65 @@
+CPU,Tree Type,Search Type,Test,Mean (ns/op),Std Dev (ns/op)
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,random,Successful,Standard,91.44,3.9
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,random,Successful,Sentinel,84.05,4.85
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,random,Successful,Two-Way,90.74,5.95
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,random,Successful,Three-Way,88.5,1.12
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,random,Unsuccessful,Standard,100.53,1.15
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,random,Unsuccessful,Sentinel,94.46,1.58
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,random,Unsuccessful,Two-Way,87.71,1.19
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,random,Unsuccessful,Three-Way,99.44,1.55
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,balanced,Successful,Standard,81.87,5.15
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,balanced,Successful,Sentinel,46.92,3.13
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,balanced,Successful,Two-Way,52.83,3.93
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,balanced,Successful,Three-Way,75.93,3.98
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,balanced,Unsuccessful,Standard,87.1,2.01
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,balanced,Unsuccessful,Sentinel,48.09,1.86
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,balanced,Unsuccessful,Two-Way,52.33,2.29
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz,balanced,Unsuccessful,Three-Way,84.52,3.07
+Apple M1 Pro,random,Successful,Standard,54.9,0.4
+Apple M1 Pro,random,Successful,Sentinel,70.65,0.26
+Apple M1 Pro,random,Successful,Two-Way,72.43,0.3
+Apple M1 Pro,random,Successful,Three-Way,56.24,0.36
+Apple M1 Pro,random,Unsuccessful,Standard,60.64,0.57
+Apple M1 Pro,random,Unsuccessful,Sentinel,80.37,0.57
+Apple M1 Pro,random,Unsuccessful,Two-Way,73.17,0.39
+Apple M1 Pro,random,Unsuccessful,Three-Way,63.66,0.87
+Apple M1 Pro,balanced,Successful,Standard,59.71,0.61
+Apple M1 Pro,balanced,Successful,Sentinel,37.46,0.23
+Apple M1 Pro,balanced,Successful,Two-Way,30.25,0.28
+Apple M1 Pro,balanced,Successful,Three-Way,58.09,0.34
+Apple M1 Pro,balanced,Unsuccessful,Standard,62.84,0.24
+Apple M1 Pro,balanced,Unsuccessful,Sentinel,35.21,0.26
+Apple M1 Pro,balanced,Unsuccessful,Two-Way,31.35,0.37
+Apple M1 Pro,balanced,Unsuccessful,Three-Way,63.77,0.4
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,random,Successful,Standard,59.28,1.45
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,random,Successful,Sentinel,57.56,1.71
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,random,Successful,Two-Way,60.46,2.2
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,random,Successful,Three-Way,51.8,2.43
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,random,Unsuccessful,Standard,63.18,1.58
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,random,Unsuccessful,Sentinel,64.97,1.24
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,random,Unsuccessful,Two-Way,61.27,2.5
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,random,Unsuccessful,Three-Way,58.53,1.95
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,balanced,Successful,Standard,56.54,1.89
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,balanced,Successful,Sentinel,31.31,1.17
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,balanced,Successful,Two-Way,28.93,1.6
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,balanced,Successful,Three-Way,49.3,1.25
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,balanced,Unsuccessful,Standard,58.16,0.73
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,balanced,Unsuccessful,Sentinel,30.44,0.55
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,balanced,Unsuccessful,Two-Way,29.79,2.86
+AMD Ryzen 7 7700X 8-Core Processor 8 16 4501,balanced,Unsuccessful,Three-Way,54.21,2.0
+Apple M4 Pro,random,Successful,Standard,43.29,1.61
+Apple M4 Pro,random,Successful,Sentinel,51.01,0.52
+Apple M4 Pro,random,Successful,Two-Way,54.47,0.53
+Apple M4 Pro,random,Successful,Three-Way,42.64,0.35
+Apple M4 Pro,random,Unsuccessful,Standard,48.33,1.32
+Apple M4 Pro,random,Unsuccessful,Sentinel,57.73,0.36
+Apple M4 Pro,random,Unsuccessful,Two-Way,54.46,0.16
+Apple M4 Pro,random,Unsuccessful,Three-Way,47.46,0.37
+Apple M4 Pro,balanced,Successful,Standard,45.09,0.47
+Apple M4 Pro,balanced,Successful,Sentinel,25.35,0.27
+Apple M4 Pro,balanced,Successful,Two-Way,21.82,0.28
+Apple M4 Pro,balanced,Successful,Three-Way,43.66,0.09
+Apple M4 Pro,balanced,Unsuccessful,Standard,48.01,0.47
+Apple M4 Pro,balanced,Unsuccessful,Sentinel,22.62,0.25
+Apple M4 Pro,balanced,Unsuccessful,Two-Way,22.67,0.31
+Apple M4 Pro,balanced,Unsuccessful,Three-Way,48.23,0.45

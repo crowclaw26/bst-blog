@@ -1,0 +1,91 @@
+Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz
+
+--- Random Tree, Successful Search ---
+  Standard  Search: Mean =    91.44 ns/op, StdDev =   3.90 ns/op (4.3%)
+  Sentinel  Search: Mean =    84.05 ns/op, StdDev =   4.85 ns/op (5.8%)
+  Two-Way   Search: Mean =    90.74 ns/op, StdDev =   5.95 ns/op (6.6%)
+  Three-Way Search: Mean =    88.50 ns/op, StdDev =   1.12 ns/op (1.3%)
+--- Random Tree, Unsuccessful Search ---
+  Standard  Search: Mean =   100.53 ns/op, StdDev =   1.15 ns/op (1.1%)
+  Sentinel  Search: Mean =    94.46 ns/op, StdDev =   1.58 ns/op (1.7%)
+  Two-Way   Search: Mean =    87.71 ns/op, StdDev =   1.19 ns/op (1.4%)
+  Three-Way Search: Mean =    99.44 ns/op, StdDev =   1.55 ns/op (1.6%)
+--- Balanced Tree, Successful Search ---
+  Standard  Search: Mean =    81.87 ns/op, StdDev =   5.15 ns/op (6.3%)
+  Sentinel  Search: Mean =    46.92 ns/op, StdDev =   3.13 ns/op (6.7%)
+  Two-Way   Search: Mean =    52.83 ns/op, StdDev =   3.93 ns/op (7.4%)
+  Three-Way Search: Mean =    75.93 ns/op, StdDev =   3.98 ns/op (5.2%)
+--- Balanced Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    87.10 ns/op, StdDev =   2.01 ns/op (2.3%)
+  Sentinel  Search: Mean =    48.09 ns/op, StdDev =   1.86 ns/op (3.9%)
+  Two-Way   Search: Mean =    52.33 ns/op, StdDev =   2.29 ns/op (4.4%)
+  Three-Way Search: Mean =    84.52 ns/op, StdDev =   3.07 ns/op (3.6%)
+
+Apple M1 Pro
+
+--- Random Tree, Successful Search ---
+  Standard  Search: Mean =    54.90 ns/op, StdDev =   0.40 ns/op (0.7%)
+  Sentinel  Search: Mean =    70.65 ns/op, StdDev =   0.26 ns/op (0.4%)
+  Two-Way   Search: Mean =    72.43 ns/op, StdDev =   0.30 ns/op (0.4%)
+  Three-Way Search: Mean =    56.24 ns/op, StdDev =   0.36 ns/op (0.6%)
+--- Random Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    60.64 ns/op, StdDev =   0.57 ns/op (0.9%)
+  Sentinel  Search: Mean =    80.37 ns/op, StdDev =   0.57 ns/op (0.7%)
+  Two-Way   Search: Mean =    73.17 ns/op, StdDev =   0.39 ns/op (0.5%)
+  Three-Way Search: Mean =    63.66 ns/op, StdDev =   0.87 ns/op (1.4%)
+--- Balanced Tree, Successful Search ---
+  Standard  Search: Mean =    59.71 ns/op, StdDev =   0.61 ns/op (1.0%)
+  Sentinel  Search: Mean =    37.46 ns/op, StdDev =   0.23 ns/op (0.6%)
+  Two-Way   Search: Mean =    30.25 ns/op, StdDev =   0.28 ns/op (0.9%)
+  Three-Way Search: Mean =    58.09 ns/op, StdDev =   0.34 ns/op (0.6%)
+--- Balanced Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    62.84 ns/op, StdDev =   0.24 ns/op (0.4%)
+  Sentinel  Search: Mean =    35.21 ns/op, StdDev =   0.26 ns/op (0.7%)
+  Two-Way   Search: Mean =    31.35 ns/op, StdDev =   0.37 ns/op (1.2%)
+  Three-Way Search: Mean =    63.77 ns/op, StdDev =   0.40 ns/op (0.6%)
+
+AMD Ryzen 7 7700X 8-Core Processor                          8                        16          4501
+
+--- Random Tree, Successful Search ---
+  Standard  Search: Mean =    59.28 ns/op, StdDev =   1.45 ns/op (2.5%)
+  Sentinel  Search: Mean =    57.56 ns/op, StdDev =   1.71 ns/op (3.0%)
+  Two-Way   Search: Mean =    60.46 ns/op, StdDev =   2.20 ns/op (3.6%)
+  Three-Way Search: Mean =    51.80 ns/op, StdDev =   2.43 ns/op (4.7%)
+--- Random Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    63.18 ns/op, StdDev =   1.58 ns/op (2.5%)
+  Sentinel  Search: Mean =    64.97 ns/op, StdDev =   1.24 ns/op (1.9%)
+  Two-Way   Search: Mean =    61.27 ns/op, StdDev =   2.50 ns/op (4.1%)
+  Three-Way Search: Mean =    58.53 ns/op, StdDev =   1.95 ns/op (3.3%)
+--- Balanced Tree, Successful Search ---
+  Standard  Search: Mean =    56.54 ns/op, StdDev =   1.89 ns/op (3.3%)
+  Sentinel  Search: Mean =    31.31 ns/op, StdDev =   1.17 ns/op (3.7%)
+  Two-Way   Search: Mean =    28.93 ns/op, StdDev =   1.60 ns/op (5.5%)
+  Three-Way Search: Mean =    49.30 ns/op, StdDev =   1.25 ns/op (2.5%)
+--- Balanced Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    58.16 ns/op, StdDev =   0.73 ns/op (1.3%)
+  Sentinel  Search: Mean =    30.44 ns/op, StdDev =   0.55 ns/op (1.8%)
+  Two-Way   Search: Mean =    29.79 ns/op, StdDev =   2.86 ns/op (9.6%)
+  Three-Way Search: Mean =    54.21 ns/op, StdDev =   2.00 ns/op (3.7%)
+
+Apple M4 Pro
+
+--- Random Tree, Successful Search ---
+  Standard  Search: Mean =    43.29 ns/op, StdDev =   1.61 ns/op (3.7%)
+  Sentinel  Search: Mean =    51.01 ns/op, StdDev =   0.52 ns/op (1.0%)
+  Two-Way   Search: Mean =    54.47 ns/op, StdDev =   0.53 ns/op (1.0%)
+  Three-Way Search: Mean =    42.64 ns/op, StdDev =   0.35 ns/op (0.8%)
+--- Random Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    48.33 ns/op, StdDev =   1.32 ns/op (2.7%)
+  Sentinel  Search: Mean =    57.73 ns/op, StdDev =   0.36 ns/op (0.6%)
+  Two-Way   Search: Mean =    54.46 ns/op, StdDev =   0.16 ns/op (0.3%)
+  Three-Way Search: Mean =    47.46 ns/op, StdDev =   0.37 ns/op (0.8%)
+--- Balanced Tree, Successful Search ---
+  Standard  Search: Mean =    45.09 ns/op, StdDev =   0.47 ns/op (1.0%)
+  Sentinel  Search: Mean =    25.35 ns/op, StdDev =   0.27 ns/op (1.1%)
+  Two-Way   Search: Mean =    21.82 ns/op, StdDev =   0.28 ns/op (1.3%)
+  Three-Way Search: Mean =    43.66 ns/op, StdDev =   0.09 ns/op (0.2%)
+--- Balanced Tree, Unsuccessful Search ---
+  Standard  Search: Mean =    48.01 ns/op, StdDev =   0.47 ns/op (1.0%)
+  Sentinel  Search: Mean =    22.62 ns/op, StdDev =   0.25 ns/op (1.1%)
+  Two-Way   Search: Mean =    22.67 ns/op, StdDev =   0.31 ns/op (1.4%)
+  Three-Way Search: Mean =    48.23 ns/op, StdDev =   0.45 ns/op (0.9%)
