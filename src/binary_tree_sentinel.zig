@@ -24,6 +24,21 @@ pub fn BinaryTreeSentinel(comptime T: type) type {
 
         pub const Tree = ?*Node;
 
+        // Same comparison helpers as BinaryTreeStd: Zig slices have no
+        // built-in <, >, or != operators, so route through these. For
+        // []const u8 each test is a full lexicographic walk; for numeric T
+        // they reduce to the plain operators and the f32 benchmark is
+        // unchanged.
+        fn lessThan(a: T, b: T) bool {
+            if (T == []const u8) return std.mem.order(u8, a, b) == .lt;
+            return a < b;
+        }
+
+        fn equalTo(a: T, b: T) bool {
+            if (T == []const u8) return std.mem.eql(u8, a, b);
+            return a == b;
+        }
+
         pub fn init(gpa: std.mem.Allocator) !This {
             const sentinel_node = try gpa.create(Node);
             sentinel_node.* = .{ .value = undefined, .left = null, .right = null };
@@ -52,10 +67,10 @@ pub fn BinaryTreeSentinel(comptime T: type) type {
 
             var parent: *Node = undefined;
             this.sentinel.value = value; // set the sentinel for the current search
-            
-            while (value != curr.value) {
+
+            while (!equalTo(value, curr.value)) {
                 parent = curr;
-                if (value < curr.value) {
+                if (lessThan(value, curr.value)) {
                     curr = curr.left.?;
                 } else {
                     curr = curr.right.?;
@@ -71,7 +86,7 @@ pub fn BinaryTreeSentinel(comptime T: type) type {
             const new_node = try allocator.create(Node);
             new_node.* = .{ .value = value, .left = this.sentinel, .right = this.sentinel };
 
-            if (value < parent.value) {
+            if (lessThan(value, parent.value)) {
                 parent.left = new_node;
             } else {
                 parent.right = new_node;
@@ -81,8 +96,8 @@ pub fn BinaryTreeSentinel(comptime T: type) type {
         pub fn member(this: *This, x: T) bool {
             var curr = this.root orelse return false;
             this.sentinel.value = x;
-            while (x != curr.value) {
-                if (x < curr.value) {
+            while (!equalTo(x, curr.value)) {
+                if (lessThan(x, curr.value)) {
                     curr = curr.left.?;
                 } else {
                     curr = curr.right.?;
