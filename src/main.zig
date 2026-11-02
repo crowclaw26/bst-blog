@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const bts_std = @import("binary_tree_std.zig");
 const bts_sentinel = @import("binary_tree_sentinel.zig");
 
@@ -35,8 +36,8 @@ pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
 
     const num_iterations = parseNumericEnvVar(init.environ_map, "NUM_ITERATIONS", 10_000);
-    const num_elements = parseNumericEnvVar(init.environ_map, "NUM_ELEMENTS", 100_000);
-    const successful_search = parseNumericEnvVar(init.environ_map, "SUCCESSFUL_SEARCH", 50);
+    const num_elements = parseNumericEnvVar(init.environ_map, "NUM_ELEMENTS", 5000);
+    const successful_search = parseNumericEnvVar(init.environ_map, "SUCCESSFUL_SEARCH", 100);
     const balanced = parseNumericEnvVar(init.environ_map, "BALANCED", 0);
 
     if (num_iterations == 0 or num_elements == 0) {
@@ -44,8 +45,8 @@ pub fn main(init: std.process.Init) !void {
         std.process.exit(1);
     }
 
-    if (successful_search > 100) {
-        std.debug.print("Error: SUCCESSFUL_SEARCH must be between 0 and 100 percent\n", .{});
+    if (successful_search != 0 and successful_search != 100) {
+        std.debug.print("Error: SUCCESSFUL_SEARCH must be 0 or 100\n", .{});
         std.process.exit(1);
     }
 
@@ -59,8 +60,18 @@ pub fn main(init: std.process.Init) !void {
     const random = prng.random();
 
     const keys = try allocator.alloc(f32, num_elements);
-    for (keys) |*key| {
-        key.* = random.float(f32);
+    var seen = std.AutoHashMap(u32, void).init(allocator);
+    defer seen.deinit();
+    try seen.ensureTotalCapacity(@intCast(num_elements));
+    var key_idx: usize = 0;
+    while (key_idx < num_elements) {
+        const val = random.float(f32);
+        const bits: u32 = @bitCast(val);
+        const gop = seen.getOrPutAssumeCapacity(bits);
+        if (!gop.found_existing) {
+            keys[key_idx] = val;
+            key_idx += 1;
+        }
     }
 
     const method_env = init.environ_map.get("METHOD") orelse "all";
@@ -111,7 +122,7 @@ pub fn main(init: std.process.Init) !void {
     const search_keys = try generateSearchKeys(allocator, random, num_iterations, num_elements, keys, successful_search);
     defer allocator.free(search_keys);
 
-    std.debug.print("Benchmark Results:\n", .{});
+    std.debug.print("Benchmark Results (andersson probes):\n", .{});
     std.debug.print("  Tree Size: {d}\n", .{num_elements});
     std.debug.print("  Iterations: {d}\n\n", .{num_iterations});
 
@@ -214,76 +225,197 @@ pub fn generateSearchKeys(
     keys: []const f32,
     successful_search: usize,
 ) ![]f32 {
-    const search_keys = try allocator.alloc(f32, num_iterations);
-    errdefer allocator.free(search_keys);
-    for (search_keys) |*key| {
-        if (random.intRangeLessThan(usize, 0, 100) < successful_search) {
-            key.* = keys[random.intRangeLessThan(usize, 0, num_elements)];
-        } else {
-            key.* = random.float(f32);
+    _ = num_elements;
+
+    if (successful_search != 0 and successful_search != 100) {
+        if (!builtin.is_test) {
+            std.debug.print("Error: SUCCESSFUL_SEARCH must be 0 or 100\n", .{});
+            std.process.exit(1);
+        }
+        return error.InvalidSuccessfulSearch;
+    }
+
+    if (keys.len == 0) {
+        if (!builtin.is_test) {
+            std.debug.print("Error: No keys provided to generate search probes\n", .{});
+            std.process.exit(1);
+        }
+        return error.InvalidElementCount;
+    }
+
+    // 1. Distinct sorted keys first. Work on a copy so tree construction is unaffected.
+    const s_buf = try allocator.alloc(f32, keys.len);
+    defer allocator.free(s_buf);
+    @memcpy(s_buf, keys);
+    std.mem.sort(f32, s_buf, {}, std.sort.asc(f32));
+
+    var n: usize = 0;
+    for (s_buf) |val| {
+        if (n == 0 or s_buf[n - 1] != val) {
+            s_buf[n] = val;
+            n += 1;
         }
     }
+    const s = s_buf[0..n];
+
+    if (n == 0 or num_iterations % n != 0) {
+        if (!builtin.is_test) {
+            std.debug.print("Error: NUM_ITERATIONS ({d}) must be divisible by distinct keys ({d})\n", .{ num_iterations, n });
+            std.process.exit(1);
+        }
+        return error.IndivisibleIterations;
+    }
+    const r = num_iterations / n;
+
+    const base_probes = try allocator.alloc(f32, n);
+    defer allocator.free(base_probes);
+
+    if (successful_search == 100) {
+        @memcpy(base_probes, s);
+    } else {
+        for (0..n - 1) |i| {
+            const mid_f64: f64 = (@as(f64, s[i]) + @as(f64, s[i + 1])) / 2.0;
+            const probe = @as(f32, @floatCast(mid_f64));
+            std.debug.assert(s[i] < probe and probe < s[i + 1]);
+            base_probes[i] = probe;
+        }
+        const last_probe = std.math.nextAfter(f32, s[n - 1], std.math.inf(f32));
+        std.debug.assert(last_probe > s[n - 1]);
+        base_probes[n - 1] = last_probe;
+    }
+
+    const search_keys = try allocator.alloc(f32, num_iterations);
+    errdefer allocator.free(search_keys);
+
+    var dest_idx: usize = 0;
+    for (base_probes) |probe| {
+        for (0..r) |_| {
+            search_keys[dest_idx] = probe;
+            dest_idx += 1;
+        }
+    }
+
+    // Shuffle once: Andersson's array order is unspecified; enumeration counts
+    // are what must match the paper, and unshuffled repetition would create order
+    // artefacts on modern hardware.
+    random.shuffle(f32, search_keys);
+
     return search_keys;
 }
 
-test "generateSearchKeys ratio verification" {
+test "generateSearchKeys hits contract" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var prng = std.Random.DefaultPrng.init(0);
+    var prng = std.Random.DefaultPrng.init(42);
     const random = prng.random();
 
-    // Create a small keys array
-    const keys = try allocator.alloc(f32, 10);
-    for (keys) |*k| {
-        k.* = random.float(f32);
-    }
+    // Distinct keys: 5 elements
+    const keys = [_]f32{ 0.1, 0.25, 0.5, 0.75, 0.9 };
+    const num_iterations: usize = 20; // R = 20 / 5 = 4
+    const r: usize = num_iterations / keys.len;
 
-    // Test 100% hits
-    {
-        const search_keys = try generateSearchKeys(allocator, random, 1000, keys.len, keys, 100);
-        defer allocator.free(search_keys);
-        
-        var hit_count: usize = 0;
+    const search_keys = try generateSearchKeys(allocator, random, num_iterations, keys.len, &keys, 100);
+    defer allocator.free(search_keys);
+
+    try std.testing.expectEqual(num_iterations, search_keys.len);
+
+    for (keys) |expected_key| {
+        var count: usize = 0;
         for (search_keys) |k| {
-            if (std.mem.indexOfScalar(f32, keys, k) != null) {
-                hit_count += 1;
+            if (k == expected_key) {
+                count += 1;
             }
         }
-        try std.testing.expectEqual(@as(usize, 1000), hit_count);
+        try std.testing.expectEqual(r, count);
+    }
+}
+
+test "generateSearchKeys misses contract" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var prng = std.Random.DefaultPrng.init(42);
+    const random = prng.random();
+
+    // Input keys with a duplicated key (0.4 appears twice)
+    const keys = [_]f32{ 0.1, 0.4, 0.7, 0.4, 0.9 };
+    // Distinct sorted keys will be: [0.1, 0.4, 0.7, 0.9] -> n = 4
+    const distinct_keys = [_]f32{ 0.1, 0.4, 0.7, 0.9 };
+    const n = distinct_keys.len;
+
+    const num_iterations: usize = 12; // R = 12 / 4 = 3
+    const r: usize = num_iterations / n;
+
+    const search_keys = try generateSearchKeys(allocator, random, num_iterations, keys.len, &keys, 0);
+    defer allocator.free(search_keys);
+
+    try std.testing.expectEqual(num_iterations, search_keys.len);
+
+    // Expected base probes:
+    // midpoints: (s[i] + s[i+1]) / 2 for i in 0..n-2
+    // plus one probe strictly greater than s[n-1]
+    var expected_probes: [4]f32 = undefined;
+    for (0..n - 1) |i| {
+        const mid_f64 = (@as(f64, distinct_keys[i]) + @as(f64, distinct_keys[i + 1])) / 2.0;
+        const probe = @as(f32, @floatCast(mid_f64));
+        // Midpoint lies strictly between its neighbours
+        try std.testing.expect(distinct_keys[i] < probe);
+        try std.testing.expect(probe < distinct_keys[i + 1]);
+        expected_probes[i] = probe;
+    }
+    const last_probe = std.math.nextAfter(f32, distinct_keys[n - 1], std.math.inf(f32));
+    try std.testing.expect(last_probe > distinct_keys[n - 1]);
+    expected_probes[n - 1] = last_probe;
+
+    // Assert: no probe equals any key in input (even with duplicates in input)
+    for (search_keys) |probe| {
+        for (keys) |key| {
+            try std.testing.expect(probe != key);
+        }
     }
 
-    // Test 0% hits (100% misses)
-    {
-        const search_keys = try generateSearchKeys(allocator, random, 1000, keys.len, keys, 0);
-        defer allocator.free(search_keys);
-        
-        var hit_count: usize = 0;
+    // Assert: distinct probes are exactly the n-1 midpoints plus one value greater than max key,
+    // and each occurs exactly R times.
+    for (expected_probes) |expected_probe| {
+        var count: usize = 0;
         for (search_keys) |k| {
-            if (std.mem.indexOfScalar(f32, keys, k) != null) {
-                hit_count += 1;
+            if (k == expected_probe) {
+                count += 1;
             }
         }
-        // Misses should generate random floats, which have virtually 0 probability of colliding with keys
-        try std.testing.expectEqual(@as(usize, 0), hit_count);
+        try std.testing.expectEqual(r, count);
     }
+}
 
-    // Test 50% hits
-    {
-        const search_keys = try generateSearchKeys(allocator, random, 1000, keys.len, keys, 50);
-        defer allocator.free(search_keys);
-        
-        var hit_count: usize = 0;
-        for (search_keys) |k| {
-            if (std.mem.indexOfScalar(f32, keys, k) != null) {
-                hit_count += 1;
-            }
-        }
-        // With 1000 iterations, 50% hit probability should yield around 500 hits.
-        // We can allow a small tolerance (e.g. between 450 and 550) for statistical variance.
-        try std.testing.expect(hit_count >= 450 and hit_count <= 550);
-    }
+test "generateSearchKeys error conditions" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var prng = std.Random.DefaultPrng.init(42);
+    const random = prng.random();
+
+    const keys = [_]f32{ 0.1, 0.2, 0.3, 0.4 }; // n = 4
+
+    // SUCCESSFUL_SEARCH=50 must fail cleanly rather than producing a probe array
+    try std.testing.expectError(
+        error.InvalidSuccessfulSearch,
+        generateSearchKeys(allocator, random, 20, keys.len, &keys, 50),
+    );
+
+    // Non-divisible NUM_ITERATIONS (e.g. 21 is not divisible by 4) must fail cleanly
+    try std.testing.expectError(
+        error.IndivisibleIterations,
+        generateSearchKeys(allocator, random, 21, keys.len, &keys, 100),
+    );
+
+    try std.testing.expectError(
+        error.IndivisibleIterations,
+        generateSearchKeys(allocator, random, 21, keys.len, &keys, 0),
+    );
 }
 
 // ---------------------------------------------------------------------------
