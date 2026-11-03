@@ -1,4 +1,103 @@
 * Notes on the binary search blog post
+** Notes on the paper
+Re-run through the paper 
+
+Arne Andersson "A note on searching in a binary search tree"
+
+1991 before his paper AA trees 
+
+*** Summary of paper
+
+Present a two-way comparisons algorithm for the BST search
+
+3 way comparison means < == or > 
+high level languages need to implement this as three comparisons
+unless you use asm or C++ <=> or zig built in  mem compare which can do a single compare and then branches
+
+andersson's method forces one (two-way) comparison per level only
+
+Introduction 
+
+three way comparison is assumed to be present but at time of writing is not and becomes two comparisons
+
+because it's a common operation it's worthwhile to optimize
+
+standard search is given in modula 2
+  observation: a while loop not recursive
+
+sentinel search presented
+  describe
+  advantage is that it null checks are removed
+
+two way search
+  not novel 
+  appears in knuth 
+
+  instead of moving the null checks we remove an extra comparison at each node
+
+"In the likely case that element-comparisons are more expensive than pointer operations, our improvement is more significant than the improvement caused by using a sentinel"
+
+the improved algorithm
+
+presented as a theorem and proof 
+
+**Theorem 1** *A node in a binary search tree with height h can be found in h + 1 two-way comparisons.*
+
+**Proof:** 
+"When the searched node is reached the algorithm does not terminate but continues in the right subtree. Since all elements in that subtree are larger than the one searched for, the algorithm will make no more right turns after passing that node. Thus if the element searched for is to be found in the tree it has to be in the node where the last right turn was made, which is the node referred to by candidate."
+
+
+he mentions here that it can be recursive and also it gives a delete and insert that can be done in one pass since it always goes to the bottom
+
+he notes that the cost is depth + 1
+
+Experimental Results...
+
+hardware info and description of the figrues
+
+method of measurement 
+
+To measure the cost of unsuccessful search the same procedure was followed, except that the *ith* element in the array is chosen as the average between the *ith* and *(i+1)th* element in the tree, and the last element in the array is made larger than all elements in the tree.
+
+std deviation 5% for random and 1% for balanced trees
+
+26-44% speedup for 2-way 
+
+  algorithm helped more than balancing 
+
+sentinel - not speed up 
+
+
+
+
+*** Questions
+**** is the two-way vs three-way code more efficient today or does it depend on the slow comparisons
+
+
+
+
+** What Argon says 
+
+pretty cool...
+
+Where C++ Standard Library Stands: This exact algorithm is how std::map::lower_bound and std::set::find are typically implemented in standard library trees (like Red-Black trees). Standard library implementations walk all the way down using a single < comparison and a trailing pointer, then check for equality once at the end.
+
+** More on C++ std set find 
+
+(clang/llvm and gcc)
+
+Both major implementations chose Andersson's deferred-equality traversal for the same reasons: branch mispredictions in hot BST search loops dominate execution time, and halving the branch count per level yields consistently faster lookups across modern pipelined architectures.
+
+Related : Knuth sentinel search on an array
+
+#+BEGIN_SRC C++
+// Instead of: while (i < N && arr[i] != key) ++i;
+arr[N] = key; // Place target value as a sentinel at the end
+int i = 0;
+while (arr[i] != key) ++i; // 1 branch instead of 2
+
+#+END_SRC
+
 ** From gemini based on results
 Key Architectural Takeaways
 The Iterative Two-Way Breakthrough: In a perfectly balanced tree structure, the iterative Two-Way search is exceptionally fast at approximately 30 ns/op. By eliminating both stack frame overhead and memory write stalls (unlike Sentinel search), it allows modern out-of-order execution pipelines to fully exploit the single comparison per node.
@@ -11,8 +110,6 @@ The Cost of State: TCO struggled with the original Two-Way search because it pas
 
 ** Optimize away
 Are you planning to inspect the exact assembly diffs (via objdump or Godbolt) to see exactly how LLVM optimized away the optional candidate parameter during the Two-Way search refactor?
-
-
 ** Why floating point?
 Based on the text of the paper, the author **does not explicitly state** why floating-point data types (REAL, DOUBLE, DIGITS) were used for the keys. However, looking closely at the author's claims earlier in the paper, it becomes very clear why this choice was made.
 

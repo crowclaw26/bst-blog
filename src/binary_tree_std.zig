@@ -11,11 +11,38 @@ pub fn BinaryTreeStd(comptime T: type) type {
 
         pub const Tree = ?*Node;
 
+        // Key comparisons go through these helpers because Zig slices have
+        // no built-in <, >, or == operators. For []const u8, lessThan and
+        // greaterThan each perform a full lexicographic walk (std.mem.order)
+        // and equalTo a full byte compare (std.mem.eql) — i.e. comparisons
+        // whose cost grows with the shared prefix, which is exactly the
+        // regime the string-key benchmark exercises. For numeric T these
+        // reduce to the plain operators, so the f32 benchmark is unchanged.
+        fn lessThan(a: T, b: T) bool {
+            if (T == []const u8) return std.mem.order(u8, a, b) == .lt;
+            return a < b;
+        }
+
+        fn greaterThan(a: T, b: T) bool {
+            if (T == []const u8) return std.mem.order(u8, a, b) == .gt;
+            return a > b;
+        }
+
+        fn equalTo(a: T, b: T) bool {
+            if (T == []const u8) return std.mem.eql(u8, a, b);
+            return a == b;
+        }
+
+        fn order3(a: T, b: T) std.math.Order {
+            if (T == []const u8) return std.mem.order(u8, a, b);
+            return std.math.order(a, b);
+        }
+
         pub fn insert(allocator: std.mem.Allocator, value: T, t: Tree) !Tree {
             if (t) |node| {
-                if (value < node.value) {
+                if (lessThan(value, node.value)) {
                     node.left = try insert(allocator, value, node.left);
-                } else if (value > node.value) {
+                } else if (greaterThan(value, node.value)) {
                     node.right = try insert(allocator, value, node.right);
                 }
                 return t;
@@ -29,9 +56,9 @@ pub fn BinaryTreeStd(comptime T: type) type {
         pub fn member(x: T, t: Tree) bool {
             var node = t;
             while (node) |curr| {
-                if (x < curr.value) {
+                if (lessThan(x, curr.value)) {
                     node = curr.left;
-                } else if (x > curr.value) {
+                } else if (greaterThan(x, curr.value)) {
                     node = curr.right;
                 } else {
                     return true;
@@ -46,7 +73,7 @@ pub fn BinaryTreeStd(comptime T: type) type {
             var candidate: ?T = null;
 
             while (node) |curr| {
-                if (x < curr.value) {
+                if (lessThan(x, curr.value)) {
                     node = curr.left;
                 } else {
                     candidate = curr.value;
@@ -54,7 +81,7 @@ pub fn BinaryTreeStd(comptime T: type) type {
                 }
             }
             if (candidate) |c| {
-                return c == x;
+                return equalTo(c, x);
             }
             return false;
         }
@@ -62,14 +89,14 @@ pub fn BinaryTreeStd(comptime T: type) type {
         /// Andersson's two-way search (recursive)
         pub fn member2_re(x: T, t: Tree, candidate: ?T) bool {
             if (t) |node| {
-                if (x >= node.value) {
+                if (!lessThan(x, node.value)) {
                     return member2_re(x, node.right, node.value);
                 } else {
                     return member2_re(x, node.left, candidate);
                 }
             } else {
                 if (candidate) |c| {
-                    return c == x;
+                    return equalTo(c, x);
                 }
                 return false;
             }
@@ -78,7 +105,7 @@ pub fn BinaryTreeStd(comptime T: type) type {
         pub fn member3(x: T, t: Tree) bool {
             var node = t;
             while (node) |curr| {
-                const compare = std.math.order(x, curr.value); 
+                const compare = order3(x, curr.value);
                 switch (compare) {
                     .lt => node = curr.left,
                     .gt => node = curr.right,
